@@ -1,0 +1,13 @@
+data/
+.runtime/
+.venv/
+.venv-*/
+.ocr-models/
+__pycache__/
+*.pyc
+.DS_Store
+.env
+.env.*
+!.env.example
+*.log
+local-access*
