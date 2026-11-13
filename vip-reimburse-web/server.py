@@ -61,6 +61,9 @@ class App:
         self.event_name = os.environ.get('EVENT_NAME','零一万物2026西南生态大会')
         self.secure = os.environ.get('COOKIE_SECURE','0') == '1'
         self.trust_proxy_headers = os.environ.get('TRUST_PROXY_HEADERS','0') == '1'
+        self.proxy_ip_header = os.environ.get('PROXY_IP_HEADER','X-Real-IP')
+        if self.proxy_ip_header not in ('X-Real-IP','CF-Connecting-IP'):
+            raise ValueError('PROXY_IP_HEADER must be X-Real-IP or CF-Connecting-IP')
         self.generated = {}
         config = json.loads(self.config_path.read_text()) if self.config_path.exists() else {}
         for env, key, label, length in [('ADMIN_PASSWORD','admin_hash','管理员密码',20),('GUEST_INVITE_CODE','invite_hash','嘉宾邀请码',10)]:
@@ -376,7 +379,7 @@ class Handler(BaseHTTPRequestHandler):
     def client_ip(self):
         # Opt in only behind a private proxy that overwrites this header.
         if self.app.trust_proxy_headers:
-            try:return str(ipaddress.ip_address(self.headers.get('X-Real-IP','').strip()))
+            try:return str(ipaddress.ip_address(self.headers.get(self.app.proxy_ip_header,'').strip()))
             except ValueError:pass
         return self.client_address[0]
     def log_message(self,format,*args):

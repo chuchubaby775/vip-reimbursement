@@ -23,6 +23,8 @@
 
 当前地址仅供这台电脑访问。请先使用虚构材料试用。
 
+需要团队异地试用时，使用 `start-team-trial.command` 和 [团队试用说明](TEAM_TRIAL.md)。它通过临时 HTTPS 隧道访问这台电脑上的独立试用数据库，保留提交、OCR 与后台导出；电脑必须保持开机联网，临时网址重启后可能改变。
+
 ## 已实现
 
 - 手机与电脑页面，三步填写：基本信息 → 费用与票据 → 确认提交。
@@ -92,7 +94,7 @@ macOS 的离线后备识别通过 `start.command` 准备，需要系统已有 Sw
 
 ## 正式使用前
 
-上传 GitHub 的操作见 [GITHUB.md](GITHUB.md)，Linux 服务器与 HTTPS 部署见 [DEPLOY.md](DEPLOY.md)。已提供 Dockerfile、Compose、Caddy 配置和不含秘密的环境模板；GitHub Pages 无法运行本项目后台。当前尚未公开上线，也未连接或推送到 GitHub，Docker 镜像仍须在目标 Linux 服务器构建验证。
+上传 GitHub 的操作见 [GITHUB.md](GITHUB.md)，Linux 服务器与 HTTPS 部署见 [DEPLOY.md](DEPLOY.md)。已提供 Dockerfile、Compose、Caddy 配置和不含秘密的环境模板；GitHub Pages 无法运行本项目后台。当前提供本机运行的临时团队试用方式，尚未部署到长期云服务器，也未连接或推送到 GitHub，Docker 镜像仍须在目标 Linux 服务器构建验证。
 
 由负责人确认大会名称、报销字段、管理权限、存储备份和保留期限。当前使用单个管理账号；如果需要区分多人操作，应增加独立账号。
 
