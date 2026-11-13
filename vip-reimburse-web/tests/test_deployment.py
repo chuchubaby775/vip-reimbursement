@@ -17,11 +17,14 @@ class DeploymentTests(unittest.TestCase):
 
     def setUp(self):
         self.previous_trust = self.server.app.trust_proxy_headers
+        self.previous_header = self.server.app.proxy_ip_header
         self.server.app.trust_proxy_headers = False
+        self.server.app.proxy_ip_header = 'X-Real-IP'
         with self.server.app.lock:self.server.app.rates.clear()
 
     def tearDown(self):
         self.server.app.trust_proxy_headers = self.previous_trust
+        self.server.app.proxy_ip_header = self.previous_header
 
     def lookup(self, address=None):
         headers = {'X-Real-IP': address} if address is not None else {}
@@ -64,3 +67,26 @@ class DeploymentTests(unittest.TestCase):
                 os.environ.pop('TRUST_PROXY_HEADERS', None)
                 if value is not None:os.environ['TRUST_PROXY_HEADERS'] = value
                 self.assertEqual(App(directory).trust_proxy_headers, expected)
+
+    def test_cloudflare_mode_uses_only_cloudflare_client_header(self):
+        self.server.app.trust_proxy_headers = True
+        self.server.app.proxy_ip_header = 'CF-Connecting-IP'
+        for index in range(8):
+            status,_ = self.req(self.client(), '/api/guest/lookup', {'mobile':'13800000000'},
+                               headers={'CF-Connecting-IP':'192.0.2.1','X-Real-IP':f'192.0.2.{index+2}'})
+            self.assertEqual(status,200)
+        status,_ = self.req(self.client(), '/api/guest/lookup', {'mobile':'13800000000'},
+                           headers={'CF-Connecting-IP':'192.0.2.1','X-Real-IP':'192.0.2.99'})
+        self.assertEqual(status,429)
+        status,_ = self.req(self.client(), '/api/guest/lookup', {'mobile':'13800000000'},
+                           headers={'CF-Connecting-IP':'192.0.2.2'})
+        self.assertEqual(status,200)
+
+    def test_cloudflare_headers_are_ignored_without_proxy_trust(self):
+        for index in range(8):
+            status,_ = self.req(self.client(), '/api/guest/lookup', {'mobile':'13800000000'},
+                               headers={'CF-Connecting-IP':f'192.0.2.{index+1}'})
+            self.assertEqual(status,200)
+        status,_ = self.req(self.client(), '/api/guest/lookup', {'mobile':'13800000000'},
+                           headers={'CF-Connecting-IP':'192.0.2.99'})
+        self.assertEqual(status,429)
