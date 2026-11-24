@@ -1,0 +1,32 @@
+{{- if hasKey .Values.ingress.annotations "nginx.ingress.kubernetes.io/rewrite-target" }}
+{{- fail "VIP application requires original URL paths; remove rewrite-target" }}
+{{- end }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "vip.name" . }}
+  labels:
+    {{- include "vip.labels" . | nindent 4 }}
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  ingressClassName: {{ .Values.ingress.className | quote }}
+  {{- if eq .Values.ingress.tlsMode "secret" }}
+  tls:
+    - hosts:
+        - {{ .Values.ingress.host | quote }}
+      secretName: {{ .Values.ingress.tlsSecretName | quote }}
+  {{- end }}
+  rules:
+    - host: {{ .Values.ingress.host | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "vip.name" . }}
+                port:
+                  number: 80

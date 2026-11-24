@@ -1,0 +1,8 @@
+# IT may add gateway-specific annotations here. Required target names are supplied
+# by protected, staging-scoped CI variables listed in ACK_DEPLOY.md.
+# Keep credentials in existing Kubernetes Secrets, never in this file.
+ingress:
+  annotations: {}
+# The gateway must allow >=20 MiB bodies, keep original paths and Host, and allow
+# at least 180 seconds for OCR requests. Annotation keys depend on IngressClass;
+# do not copy nginx keys without confirming that the company's gateway uses them.

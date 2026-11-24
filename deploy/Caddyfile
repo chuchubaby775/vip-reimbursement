@@ -1,0 +1,11 @@
+{$APP_DOMAIN} {
+    request_body {
+        # Keep this above the application limit so compressed phone photos and
+        # server-side HEIC conversion reach the app instead of being rejected
+        # by the reverse proxy first.
+        max_size 40MB
+    }
+    reverse_proxy app:8765 {
+        header_up X-Real-IP {remote_host}
+    }
+}

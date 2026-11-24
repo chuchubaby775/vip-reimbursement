@@ -1,0 +1,14 @@
+# Synthetic render-only configuration. This does not identify a live target.
+image:
+  repository: registry.example.invalid/vip-check
+  tag: render-only
+imagePullSecrets:
+  - name: check-registry-secret
+secrets:
+  existingSecret: check-app-secret
+persistence:
+  existingClaim: check-data-pvc
+ingress:
+  className: check-ingress
+  host: vip.example.invalid
+  tlsSecretName: check-tls-secret

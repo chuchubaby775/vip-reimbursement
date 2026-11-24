@@ -1,0 +1,147 @@
+{{- if ne (int .Values.replicaCount) 1 }}
+{{- fail "SQLite requires replicaCount=1" }}
+{{- end }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "vip.name" . }}
+  labels:
+    {{- include "vip.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  revisionHistoryLimit: 3
+  progressDeadlineSeconds: 600
+  selector:
+    matchLabels:
+      {{- include "vip.selector" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "vip.selector" . | nindent 8 }}
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 90
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      imagePullSecrets:
+        {{- toYaml .Values.imagePullSecrets | nindent 8 }}
+      nodeSelector:
+        {{- toYaml .Values.nodeSelector | nindent 8 }}
+      initContainers:
+        - name: prepare-runtime
+          image: {{ printf "%s:%s" .Values.image.repository .Values.image.tag | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["python", "-c"]
+          args:
+            - |
+              import pathlib, shutil, tempfile
+              source = pathlib.Path('/app/.runtime')
+              if not (source / 'paddle').is_dir():
+                  raise RuntimeError('Image does not contain prepared OCR models')
+              shutil.copytree(source, '/ocr-runtime', dirs_exist_ok=True)
+              # Verify the provided PVC is writable without changing its contents.
+              with tempfile.TemporaryFile(dir='/data') as handle:
+                  handle.write(b'volume-check')
+              print('OCR cache copied; persistent storage is writable.')
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests: {cpu: 100m, memory: 128Mi}
+            limits: {cpu: "1", memory: 512Mi}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: ocr-runtime
+              mountPath: /ocr-runtime
+      containers:
+        - name: app
+          image: {{ printf "%s:%s" .Values.image.repository .Values.image.tag | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          # Test image inference before accepting any guest requests.
+          command: ["/bin/sh", "-ec"]
+          args:
+            - |
+              mkdir -p /tmp/home
+              python scripts/prepare_models.py
+              exec python server.py
+          ports:
+            - name: http
+              containerPort: 8765
+          env:
+            - name: HOST
+              value: "0.0.0.0"
+            - name: PORT
+              value: "8765"
+            - name: DATA_DIR
+              value: /data
+            - name: HOME
+              value: /tmp/home
+            - name: COOKIE_SECURE
+              value: "1"
+            - name: TRUST_PROXY_HEADERS
+              value: {{ .Values.app.trustProxyHeaders | quote }}
+            - name: PROXY_IP_HEADER
+              value: X-Real-IP
+            - name: EVENT_NAME
+              value: {{ .Values.app.eventName | quote }}
+            - name: ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.existingSecret | quote }}
+                  key: ADMIN_PASSWORD
+            - name: GUEST_INVITE_CODE
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.existingSecret | quote }}
+                  key: GUEST_INVITE_CODE
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          startupProbe:
+            httpGet: {path: /healthz, port: http}
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 60
+          readinessProbe:
+            httpGet: {path: /healthz, port: http}
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            httpGet: {path: /healthz, port: http}
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 5
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: ocr-runtime
+              mountPath: /app/.runtime
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        # Pre-existing claim is deliberately not owned/deleted by this chart.
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ .Values.persistence.existingClaim | quote }}
+        - name: ocr-runtime
+          emptyDir:
+            sizeLimit: 2Gi
+        - name: tmp
+          emptyDir:
+            sizeLimit: 1Gi

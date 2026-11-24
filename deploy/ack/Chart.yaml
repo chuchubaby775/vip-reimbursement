@@ -1,0 +1,7 @@
+apiVersion: v2
+name: vip-reimbursement
+description: 01.AI conference reimbursement collection, single SQLite instance
+type: application
+version: 0.1.0
+appVersion: "2026.11.16"
+kubeVersion: ">=1.24.0-0"

@@ -1,0 +1,32 @@
+# Required fields intentionally have no company target defaults.
+replicaCount: 1
+image:
+  repository: ""
+  tag: ""
+  pullPolicy: IfNotPresent
+imagePullSecrets: []
+secrets:
+  existingSecret: ""
+persistence:
+  existingClaim: ""
+app:
+  eventName: 零一万物2026西南生态大会
+  trustProxyHeaders: "0"
+resources:
+  requests:
+    cpu: "1"
+    memory: 2Gi
+  limits:
+    cpu: "2"
+    memory: 4Gi
+nodeSelector:
+  kubernetes.io/os: linux
+  kubernetes.io/arch: amd64
+ingress:
+  className: ""
+  host: ""
+  # secret: certificate from a Kubernetes TLS Secret.
+  # gateway: TLS terminated by the company gateway, confirmed by IT.
+  tlsMode: secret
+  tlsSecretName: ""
+  annotations: {}
